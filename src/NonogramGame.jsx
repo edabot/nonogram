@@ -6,6 +6,7 @@ const NonogramGame = () => {
     puzzle,
     playerGrid,
     gridSize,
+    difficulty,
     isComplete,
     validationMessage,
     history,
@@ -18,7 +19,8 @@ const NonogramGame = () => {
     handleMouseUp,
     handleRightClick,
     handleSizeChange,
-  } = useNonogramGame(5);
+    handleDifficultyChange,
+  } = useNonogramGame(8, 'medium');
 
   if (!puzzle) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -64,10 +66,19 @@ const NonogramGame = () => {
               onChange={(e) => handleSizeChange(Number(e.target.value))}
               className="px-4 py-2 border-2 border-indigo-300 rounded-lg focus:outline-none focus:border-indigo-500"
             >
-              <option value={5}>5x5</option>
               <option value={8}>8x8</option>
               <option value={10}>10x10</option>
               <option value={15}>15x15</option>
+              <option value={20}>20x20</option>
+            </select>
+            <select
+              value={difficulty}
+              onChange={(e) => handleDifficultyChange(e.target.value)}
+              className="px-4 py-2 border-2 border-indigo-300 rounded-lg focus:outline-none focus:border-indigo-500"
+            >
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
             </select>
           </div>
 

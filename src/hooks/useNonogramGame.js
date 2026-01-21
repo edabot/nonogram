@@ -3,8 +3,9 @@ import { generatePuzzle, createEmptyGrid } from '../utils/puzzleGenerator';
 import { analyzeLine } from '../utils/lineAnalysis';
 import { getLogicalHint } from '../utils/hints';
 
-export const useNonogramGame = (initialSize = 5) => {
+export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') => {
   const [gridSize, setGridSize] = useState(initialSize);
+  const [difficulty, setDifficulty] = useState(initialDifficulty);
   const [puzzle, setPuzzle] = useState(null);
   const [playerGrid, setPlayerGrid] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
@@ -67,15 +68,16 @@ export const useNonogramGame = (initialSize = 5) => {
   }, []);
 
   // Initialize new game
-  const newGame = useCallback((size) => {
+  const newGame = useCallback((size, diff) => {
     const actualSize = size ?? gridSize;
-    const newPuzzle = generatePuzzle(actualSize);
+    const actualDifficulty = diff ?? difficulty;
+    const newPuzzle = generatePuzzle(actualSize, actualDifficulty);
     setPuzzle(newPuzzle);
     setPlayerGrid(createEmptyGrid(actualSize));
     setIsComplete(false);
     setHistory([]);
     setValidationMessage(null);
-  }, [gridSize]);
+  }, [gridSize, difficulty]);
 
   // Undo last action
   const undo = useCallback(() => {
@@ -205,8 +207,14 @@ export const useNonogramGame = (initialSize = 5) => {
   // Handle size change
   const handleSizeChange = useCallback((newSize) => {
     setGridSize(newSize);
-    newGame(newSize);
-  }, [newGame]);
+    newGame(newSize, difficulty);
+  }, [newGame, difficulty]);
+
+  // Handle difficulty change
+  const handleDifficultyChange = useCallback((newDifficulty) => {
+    setDifficulty(newDifficulty);
+    newGame(gridSize, newDifficulty);
+  }, [newGame, gridSize]);
 
   // Initialize game on mount
   useEffect(() => {
@@ -230,6 +238,7 @@ export const useNonogramGame = (initialSize = 5) => {
     puzzle,
     playerGrid,
     gridSize,
+    difficulty,
     isComplete,
     validationMessage,
     history,
@@ -242,5 +251,6 @@ export const useNonogramGame = (initialSize = 5) => {
     handleMouseUp,
     handleRightClick,
     handleSizeChange,
+    handleDifficultyChange,
   };
 };

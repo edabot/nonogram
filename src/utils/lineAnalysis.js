@@ -27,16 +27,62 @@ const getValidArrangements = (line, clues) => {
   );
 };
 
-// Find cells that must be X based on all valid arrangements
-const findCellsToMark = (line, validArrangements) => {
-  const cellsToMark = [];
+// Find cells that must be X, propagating outward from player-filled groups
+// Also marks all remaining cells if all clues are satisfied
+const findCellsToMark = (line, validArrangements, clues) => {
+  const filledGroups = findGroups(line);
 
+  // Check if all clues are satisfied (correct number of groups with correct sizes)
+  const allCluesSatisfied = filledGroups.length === clues.length &&
+    filledGroups.every((group, idx) => group.size === clues[idx]);
+
+  // First, find all cells that must be empty in all valid arrangements
+  const mustBeEmpty = new Array(line.length).fill(false);
   for (let i = 0; i < line.length; i++) {
     if (line[i] === null) {
-      const allEmpty = validArrangements.every(arr => !arr[i]);
-      if (allEmpty) {
+      mustBeEmpty[i] = validArrangements.every(arr => !arr[i]);
+    }
+  }
+
+  // If all clues satisfied, mark all must-be-empty cells
+  if (allCluesSatisfied) {
+    const cellsToMark = [];
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === null && mustBeEmpty[i]) {
         cellsToMark.push(i);
       }
+    }
+    return cellsToMark;
+  }
+
+  // Otherwise, propagate outward from each filled group
+  // Mark cells that are must-be-empty and connected to a filled group
+  const toMark = new Array(line.length).fill(false);
+
+  for (const group of filledGroups) {
+    // Propagate left from group start
+    for (let i = group.start - 1; i >= 0; i--) {
+      if (line[i] === null && mustBeEmpty[i]) {
+        toMark[i] = true;
+      } else {
+        break; // Stop at filled cell, X, or cell that might not be empty
+      }
+    }
+
+    // Propagate right from group end
+    for (let i = group.end + 1; i < line.length; i++) {
+      if (line[i] === null && mustBeEmpty[i]) {
+        toMark[i] = true;
+      } else {
+        break; // Stop at filled cell, X, or cell that might not be empty
+      }
+    }
+  }
+
+  const cellsToMark = [];
+  for (let i = 0; i < line.length; i++) {
+    if (toMark[i]) {
+      cellsToMark.push(i);
     }
   }
 
@@ -65,11 +111,13 @@ const getGroupsFromArrangement = (arrangement) => {
 
 // Determine which clues are definitively completed
 // A clue is complete only if ALL valid arrangements agree on which group satisfies it
+// Returns both the completed clues array and the positions of completed groups
 const findCompletedClues = (line, clues, validArrangements) => {
   const completedClues = new Array(clues.length).fill(false);
+  const completedGroupPositions = [];
 
   if (validArrangements.length === 0) {
-    return completedClues;
+    return { completedClues, completedGroupPositions };
   }
 
   // For each clue, check if all valid arrangements place it at the same position
@@ -105,11 +153,12 @@ const findCompletedClues = (line, clues, validArrangements) => {
 
       if (leftBounded && rightBounded && allFilled) {
         completedClues[clueIdx] = true;
+        completedGroupPositions.push({ start: group.start, end: group.end });
       }
     }
   }
 
-  return completedClues;
+  return { completedClues, completedGroupPositions };
 };
 
 // Analyze a line to determine which clues are complete and where X's should go
@@ -121,8 +170,8 @@ export const analyzeLine = (line, clues) => {
     return { completedClues: new Array(clues.length).fill(false), cellsToMark: [] };
   }
 
-  const cellsToMark = findCellsToMark(line, validArrangements);
-  const completedClues = findCompletedClues(line, clues, validArrangements);
+  const { completedClues } = findCompletedClues(line, clues, validArrangements);
+  const cellsToMark = findCellsToMark(line, validArrangements, clues);
 
   return { completedClues, cellsToMark };
 };

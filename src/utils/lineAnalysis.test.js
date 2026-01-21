@@ -12,18 +12,18 @@ describe('analyzeLine', () => {
       expect(cellsToMark).toEqual([]);
     });
 
-    it('marks cells that must be empty based on filled cells', () => {
-      // Line: [filled, null, null, null, null] with clue [1]
-      // The filled cell satisfies clue [1], so remaining must be X
-      const line = [1, null, null, null, null];
-      const clues = [1];
+    it('marks all remaining cells when all clues are satisfied', () => {
+      // Line: [filled, filled, X, null, null] with clue [2]
+      // The group [0-1] satisfies the clue [2], so all remaining nulls should be X
+      const line = [1, 1, 0, null, null];
+      const clues = [2];
       const { cellsToMark } = analyzeLine(line, clues);
-      expect(cellsToMark).toEqual([1, 2, 3, 4]);
+      expect(cellsToMark).toEqual([3, 4]);
     });
 
-    it('marks edges when group is near edge with small clue', () => {
+    it('marks all cells when single clue is satisfied', () => {
       // Line: [null, filled, null, null, null] with clue [1]
-      // If cell 1 is filled and clue is 1, cells 0 and 2-4 must be X
+      // The filled cell satisfies clue [1], so all remaining nulls should be X
       const line = [null, 1, null, null, null];
       const clues = [1];
       const { cellsToMark } = analyzeLine(line, clues);
@@ -40,13 +40,13 @@ describe('analyzeLine', () => {
       expect(cellsToMark).toEqual([]);
     });
 
-    it('marks cells between completed groups', () => {
-      // Line: [filled, X, null, null, filled] with clues [1, 1]
-      // First and last groups are complete, middle must be X
-      const line = [1, 0, null, null, 1];
+    it('marks remaining cells when all clues satisfied with multiple groups', () => {
+      // Line: [filled, X, null, X, filled] with clues [1, 1]
+      // Both groups satisfy their clues, so remaining null (cell 2) should be X
+      const line = [1, 0, null, 0, 1];
       const clues = [1, 1];
       const { cellsToMark } = analyzeLine(line, clues);
-      expect(cellsToMark).toEqual([2, 3]);
+      expect(cellsToMark).toEqual([2]);
     });
 
     it('handles line where all cells are determined', () => {
@@ -56,11 +56,37 @@ describe('analyzeLine', () => {
       expect(cellsToMark).toEqual([]);
     });
 
-    it('handles zero clue (empty line)', () => {
+    it('handles zero clue (empty line) - no auto X without completed groups', () => {
+      // With clue [0], there are no groups to complete, so no adjacent X's to mark
       const line = [null, null, null];
       const clues = [0];
       const { cellsToMark } = analyzeLine(line, clues);
-      expect(cellsToMark).toEqual([0, 1, 2]);
+      expect(cellsToMark).toEqual([]);
+    });
+
+    it('propagates X marks to edge when group is placed away from edge', () => {
+      // Line: [null, filled, filled, filled, filled, null, null, null] with clues [4, 1]
+      // Group of 4 at positions 1-4
+      // Valid arrangements: 01111010, 01111001
+      // Position 0 must be X, position 5 must be X (adjacent separator)
+      // Positions 6, 7 could have the "1" so not must-be-empty
+      const line = [null, 1, 1, 1, 1, null, null, null];
+      const clues = [4, 1];
+      const { cellsToMark } = analyzeLine(line, clues);
+      // Should mark cells 0 (propagates to edge) and 5 (adjacent to group)
+      expect(cellsToMark).toEqual([0, 5]);
+    });
+
+    it('propagates X marks when first clue group is placed', () => {
+      // Line: [filled, filled, filled, filled, null, null, null, null] with clues [4, 1]
+      // Group of 4 at positions 0-3 (at edge)
+      // Valid arrangements that match: 11110100, 11110010, 11110001
+      // Position 4 must be X (separator after the 4)
+      const line = [1, 1, 1, 1, null, null, null, null];
+      const clues = [4, 1];
+      const { cellsToMark } = analyzeLine(line, clues);
+      // Should mark cell 4 (adjacent to group, must be separator)
+      expect(cellsToMark).toEqual([4]);
     });
   });
 
