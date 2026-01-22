@@ -1,5 +1,10 @@
 import { getCluesFromLine } from './clues';
+import { countSolutionsSAT } from './satSolver';
 import { countSolutions } from './solver';
+
+// Threshold for using SAT solver vs constraint propagation
+// SAT solver is more thorough but uses more memory on large grids
+const SAT_SOLVER_MAX_SIZE = 15;
 
 // Density settings by difficulty
 const DENSITY_BY_DIFFICULTY = {
@@ -10,9 +15,8 @@ const DENSITY_BY_DIFFICULTY = {
 
 // Generate a random puzzle with unique solution
 export const generatePuzzle = (size, difficulty = 'medium') => {
-  // For large grids, skip uniqueness check as it's too slow
-  const skipUniquenessCheck = size > 15;
-  const maxAttempts = skipUniquenessCheck ? 1 : 100;
+  // Try multiple attempts to find a unique puzzle
+  const maxAttempts = 100;
   const density = DENSITY_BY_DIFFICULTY[difficulty] || 0.5;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -39,12 +43,11 @@ export const generatePuzzle = (size, difficulty = 'medium') => {
       getCluesFromLine(solution.map(row => row[colIdx]))
     );
 
-    if (skipUniquenessCheck) {
-      return { solution, rowClues, colClues, size };
-    }
-
     // Check for unique solution
-    const solutionCount = countSolutions(rowClues, colClues, size);
+    // Use SAT solver for smaller grids (more thorough), constraint propagation for larger
+    const solutionCount = size <= SAT_SOLVER_MAX_SIZE
+      ? countSolutionsSAT(rowClues, colClues, size)
+      : countSolutions(rowClues, colClues, size);
     if (solutionCount === 1) {
       return { solution, rowClues, colClues, size };
     }

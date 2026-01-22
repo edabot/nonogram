@@ -1,90 +1,91 @@
-import { getCluesFromLine, generateArrangements } from './clues';
+import { generateArrangements } from './clues';
 
-// Solve puzzle and count solutions (returns 0, 1, or 2 meaning "more than 1")
+// Check if puzzle has a unique solution using constraint propagation
+// Returns: 0 (no solution), 1 (unique), or 2 (multiple/undetermined)
 export const countSolutions = (rowClues, colClues, size) => {
+  // Grid: null = unknown, true = filled, false = empty
   const grid = Array(size).fill(null).map(() => Array(size).fill(null));
 
+  // Get valid arrangements for a line given current state
   const getValidArrangements = (clues, line) => {
-    const arrangements = generateArrangements(clues, line.length);
-    return arrangements.filter(arr =>
+    return generateArrangements(clues, line.length).filter(arr =>
       line.every((cell, i) => cell === null || cell === arr[i])
     );
   };
 
+  // Propagate constraints until no more changes
   const propagate = () => {
     let changed = true;
-    while (changed) {
-      changed = false;
+    let iterations = 0;
+    const maxIterations = size * size; // Safety limit
 
+    while (changed && iterations < maxIterations) {
+      changed = false;
+      iterations++;
+
+      // Process rows
       for (let r = 0; r < size; r++) {
         const row = grid[r];
         const valid = getValidArrangements(rowClues[r], row);
-        if (valid.length === 0) return false;
+
+        if (valid.length === 0) return false; // No valid arrangement = invalid
 
         for (let c = 0; c < size; c++) {
           if (row[c] === null) {
             const allTrue = valid.every(arr => arr[c] === true);
             const allFalse = valid.every(arr => arr[c] === false);
-            if (allTrue) { grid[r][c] = true; changed = true; }
-            else if (allFalse) { grid[r][c] = false; changed = true; }
+
+            if (allTrue) {
+              grid[r][c] = true;
+              changed = true;
+            } else if (allFalse) {
+              grid[r][c] = false;
+              changed = true;
+            }
           }
         }
       }
 
+      // Process columns
       for (let c = 0; c < size; c++) {
         const col = grid.map(row => row[c]);
         const valid = getValidArrangements(colClues[c], col);
-        if (valid.length === 0) return false;
+
+        if (valid.length === 0) return false; // No valid arrangement = invalid
 
         for (let r = 0; r < size; r++) {
           if (grid[r][c] === null) {
             const allTrue = valid.every(arr => arr[r] === true);
             const allFalse = valid.every(arr => arr[r] === false);
-            if (allTrue) { grid[r][c] = true; changed = true; }
-            else if (allFalse) { grid[r][c] = false; changed = true; }
-          }
-        }
-      }
-    }
-    return true;
-  };
 
-  const solve = () => {
-    if (!propagate()) return 0;
-
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (grid[r][c] === null) {
-          let count = 0;
-
-          const backup = grid.map(row => [...row]);
-          grid[r][c] = true;
-          count += solve();
-          if (count > 1) return count;
-
-          for (let i = 0; i < size; i++) {
-            for (let j = 0; j < size; j++) {
-              grid[i][j] = backup[i][j];
+            if (allTrue) {
+              grid[r][c] = true;
+              changed = true;
+            } else if (allFalse) {
+              grid[r][c] = false;
+              changed = true;
             }
           }
-          grid[r][c] = false;
-          count += solve();
-          return Math.min(count, 2);
         }
       }
     }
 
-    for (let r = 0; r < size; r++) {
-      const rowResult = getCluesFromLine(grid[r]);
-      if (rowResult.join(',') !== rowClues[r].join(',')) return 0;
-    }
-    for (let c = 0; c < size; c++) {
-      const col = grid.map(row => row[c]);
-      const colResult = getCluesFromLine(col);
-      if (colResult.join(',') !== colClues[c].join(',')) return 0;
-    }
-    return 1;
+    return true; // Valid state (possibly incomplete)
   };
 
-  return solve();
+  // Run constraint propagation
+  if (!propagate()) {
+    return 0; // No solution
+  }
+
+  // Check if fully solved
+  const hasUnknown = grid.some(row => row.some(cell => cell === null));
+
+  if (!hasUnknown) {
+    return 1; // Unique solution (solved purely by propagation)
+  }
+
+  // If there are still unknowns, the puzzle might have multiple solutions
+  // or require guessing. For puzzle generation, we treat this as "not unique"
+  return 2;
 };

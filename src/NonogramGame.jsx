@@ -14,13 +14,14 @@ const NonogramGame = () => {
     undo,
     giveHint,
     validate,
+    showSolution,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
     handleRightClick,
     handleSizeChange,
     handleDifficultyChange,
-  } = useNonogramGame(8, 'medium');
+  } = useNonogramGame(10, 'medium');
 
   if (!puzzle) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -61,12 +62,17 @@ const NonogramGame = () => {
             >
               Validate
             </button>
+            <button
+              onClick={showSolution}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+            >
+              Show Solution
+            </button>
             <select
               value={gridSize}
               onChange={(e) => handleSizeChange(Number(e.target.value))}
               className="px-4 py-2 border-2 border-indigo-300 rounded-lg focus:outline-none focus:border-indigo-500"
             >
-              <option value={8}>8x8</option>
               <option value={10}>10x10</option>
               <option value={15}>15x15</option>
               <option value={20}>20x20</option>

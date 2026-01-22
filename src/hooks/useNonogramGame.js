@@ -204,6 +204,17 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     setTimeout(() => setValidationMessage(null), 3000);
   }, [puzzle, playerGrid]);
 
+  // Show solution (debug)
+  const showSolution = useCallback(() => {
+    if (!puzzle) return;
+
+    const solutionGrid = puzzle.solution.map(row =>
+      row.map(cell => cell ? 1 : 0)
+    );
+    setPlayerGrid(solutionGrid);
+    setIsComplete(true);
+  }, [puzzle]);
+
   // Handle size change
   const handleSizeChange = useCallback((newSize) => {
     setGridSize(newSize);
@@ -246,6 +257,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     undo,
     giveHint,
     validate,
+    showSolution,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
