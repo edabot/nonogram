@@ -10,10 +10,14 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
   const [playerGrid, setPlayerGrid] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
   const [validationMessage, setValidationMessage] = useState(null);
+  const [showValidationPopup, setShowValidationPopup] = useState(false);
+  const [mistakes, setMistakes] = useState([]); // Array of {row, col} for incorrect cells
   const [isDragging, setIsDragging] = useState(false);
   const [dragValue, setDragValue] = useState(null);
   const [history, setHistory] = useState([]);
+  const [hintCell, setHintCell] = useState(null); // {row, col} of recently hinted cell
   const dragGridRef = useRef(null);
+  const hintTimeoutRef = useRef(null);
 
   // Check if puzzle is solved
   const checkCompletion = useCallback((grid, currentPuzzle) => {
@@ -77,6 +81,8 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     setIsComplete(false);
     setHistory([]);
     setValidationMessage(null);
+    setShowValidationPopup(false);
+    setMistakes([]);
   }, [gridSize, difficulty]);
 
   // Undo last action
@@ -150,6 +156,19 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     checkCompletion(newGrid, puzzle);
   }, [isComplete, playerGrid, puzzle, saveToHistory, autoFillComplete, checkCompletion]);
 
+  // Set hint cell with auto-clear after 2 seconds
+  const setHintCellWithTimeout = useCallback((row, col) => {
+    // Clear any existing timeout
+    if (hintTimeoutRef.current) {
+      clearTimeout(hintTimeoutRef.current);
+    }
+    setHintCell({ row, col });
+    hintTimeoutRef.current = setTimeout(() => {
+      setHintCell(null);
+      hintTimeoutRef.current = null;
+    }, 2000);
+  }, []);
+
   // Give a logical hint (deduced from constraints) or random if none available
   // Only reveals one cell at a time (no auto-fill cascade)
   const giveHint = useCallback(() => {
@@ -165,6 +184,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
       newGrid[logicalHint.row][logicalHint.col] = logicalHint.value;
       setPlayerGrid(newGrid);
       checkCompletion(newGrid, puzzle);
+      setHintCellWithTimeout(logicalHint.row, logicalHint.col);
       return;
     }
 
@@ -183,26 +203,74 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
       newGrid[row][col] = puzzle.solution[row][col] ? 1 : 0;
       setPlayerGrid(newGrid);
       checkCompletion(newGrid, puzzle);
+      setHintCellWithTimeout(row, col);
     }
-  }, [puzzle, isComplete, playerGrid, saveToHistory, checkCompletion]);
+  }, [puzzle, isComplete, playerGrid, saveToHistory, checkCompletion, setHintCellWithTimeout]);
 
-  // Validate current state
+  // Validate current state - shows popup
   const validate = useCallback(() => {
     if (!puzzle) return;
 
-    let hasError = false;
+    const foundMistakes = [];
 
     playerGrid.forEach((row, i) => {
       row.forEach((cell, j) => {
-        if (cell !== null && cell !== (puzzle.solution[i][j] ? 1 : 0)) {
-          hasError = true;
+        // A mistake is when player filled a cell that should be empty
+        if (cell === 1 && !puzzle.solution[i][j]) {
+          foundMistakes.push({ row: i, col: j });
         }
       });
     });
 
-    setValidationMessage(hasError ? 'mistakes' : 'correct');
-    setTimeout(() => setValidationMessage(null), 3000);
+    setMistakes([]); // Clear any previous mistake highlighting
+    setValidationMessage(foundMistakes.length > 0 ? 'mistakes' : 'correct');
+    setShowValidationPopup(true);
   }, [puzzle, playerGrid]);
+
+  // Close validation popup
+  const closeValidationPopup = useCallback(() => {
+    setShowValidationPopup(false);
+    setValidationMessage(null);
+  }, []);
+
+  // Show mistakes - highlights incorrect cells
+  const showMistakes = useCallback(() => {
+    if (!puzzle) return;
+
+    const foundMistakes = [];
+
+    playerGrid.forEach((row, i) => {
+      row.forEach((cell, j) => {
+        // A mistake is when player filled a cell that should be empty
+        if (cell === 1 && !puzzle.solution[i][j]) {
+          foundMistakes.push({ row: i, col: j });
+        }
+      });
+    });
+
+    setMistakes(foundMistakes);
+    setShowValidationPopup(false);
+  }, [puzzle, playerGrid]);
+
+  // Remove all mistakes from the grid
+  const removeMistakes = useCallback(() => {
+    if (!puzzle || mistakes.length === 0) return;
+
+    saveToHistory(playerGrid);
+    const newGrid = playerGrid.map(r => [...r]);
+
+    for (const { row, col } of mistakes) {
+      newGrid[row][col] = null;
+    }
+
+    setPlayerGrid(newGrid);
+    setMistakes([]);
+  }, [puzzle, playerGrid, mistakes, saveToHistory]);
+
+  // Clear mistake highlighting
+  const clearMistakes = useCallback(() => {
+    setMistakes([]);
+  }, []);
 
   // Show solution (debug)
   const showSolution = useCallback(() => {
@@ -252,11 +320,18 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     difficulty,
     isComplete,
     validationMessage,
+    showValidationPopup,
+    mistakes,
+    hintCell,
     history,
     newGame,
     undo,
     giveHint,
     validate,
+    closeValidationPopup,
+    showMistakes,
+    removeMistakes,
+    clearMistakes,
     showSolution,
     handleMouseDown,
     handleMouseEnter,
