@@ -179,11 +179,11 @@ const NonogramGame = () => {
   const maxColClues = Math.max(...puzzle.colClues.map(c => c.length));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 p-4 md:p-8">
+      <div className="mx-auto" style={{ maxWidth: 'fit-content' }}>
         <h1 className="text-4xl font-bold text-center mb-8 text-indigo-900">Nonogram Puzzle</h1>
 
-        <div className="bg-white rounded-lg shadow-xl p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 mb-6 overflow-x-auto">
           <div className="flex gap-4 mb-4 flex-wrap justify-center">
             <button
               onClick={() => newGame()}
@@ -313,7 +313,7 @@ const NonogramGame = () => {
           <div className="flex justify-center">
             <div className="inline-block" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
               {/* Column clues */}
-              <div className="flex" style={{ marginLeft: `${maxRowClues * 28}px` }}>
+              <div className="flex" style={{ marginLeft: `${maxRowClues * 20 + 8}px` }}>
                 {puzzle.colClues.map((clues, colIdx) => (
                   <div key={colIdx} className="flex flex-col items-center justify-end" style={{ width: '28px', height: `${maxColClues * 20}px` }}>
                     {clues.map((clue, clueIdx) => {
@@ -339,14 +339,14 @@ const NonogramGame = () => {
               {playerGrid.map((row, rowIdx) => (
                 <div key={rowIdx} className="flex items-center">
                   {/* Row clues */}
-                  <div className="flex items-center justify-end" style={{ width: `${maxRowClues * 28}px`, height: '28px' }}>
+                  <div className="flex items-center justify-end pr-2" style={{ width: `${maxRowClues * 20 + 8}px`, height: '28px' }}>
                     {puzzle.rowClues[rowIdx].map((clue, clueIdx) => {
                       const allComplete = areAllCluesComplete(row, puzzle.rowClues[rowIdx]);
                       const completed = allComplete || isClueCompleted(row, clueIdx, puzzle.rowClues[rowIdx]);
                       return (
                         <div
                           key={clueIdx}
-                          className={`text-sm font-semibold mr-2 transition-colors ${
+                          className={`w-5 text-center text-sm font-semibold transition-colors ${
                             completed ? 'text-gray-400' : 'text-indigo-900'
                           }`}
                         >
