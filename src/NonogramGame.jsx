@@ -1,7 +1,158 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNonogramGame } from './hooks/useNonogramGame';
 import { isClueCompleted, areAllCluesComplete } from './utils/lineAnalysis';
 import { generatePuzzle } from './utils/puzzleGenerator';
+
+const HoldToConfirmButton = ({ onConfirm, holdDuration = 2000, children, className }) => {
+  const [isHolding, setIsHolding] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const startTimeRef = useRef(null);
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    if (isHolding) {
+      startTimeRef.current = Date.now();
+
+      const animate = () => {
+        const elapsed = Date.now() - startTimeRef.current;
+        const newProgress = Math.min((elapsed / holdDuration) * 100, 100);
+        setProgress(newProgress);
+
+        if (newProgress >= 100) {
+          setIsHolding(false);
+          setProgress(0);
+          onConfirm();
+        } else {
+          animationRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
+    } else {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      setProgress(0);
+    }
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isHolding, holdDuration, onConfirm]);
+
+  const handleMouseDown = () => setIsHolding(true);
+  const handleMouseUp = () => setIsHolding(false);
+  const handleMouseLeave = () => setIsHolding(false);
+
+  return (
+    <button
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseDown}
+      onTouchEnd={handleMouseUp}
+      className={`relative overflow-hidden ${className}`}
+    >
+      <div
+        className="absolute inset-0 bg-white/30 transition-none"
+        style={{ width: `${progress}%` }}
+      />
+      <span className="relative z-10">{children}</span>
+    </button>
+  );
+};
+
+const ShowSolutionPopup = ({ onConfirm, onCancel }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4">
+        <div className="text-center mb-4">
+          <div className="text-4xl mb-2">&#9888;</div>
+          <h2 className="text-xl font-bold text-gray-800">Show Solution?</h2>
+          <p className="text-gray-600 mt-2">
+            This will reveal the complete solution. Hold the button for 2 seconds to confirm.
+          </p>
+        </div>
+        <div className="flex gap-3 justify-center">
+          <HoldToConfirmButton
+            onConfirm={onConfirm}
+            holdDuration={2000}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Hold to Confirm
+          </HoldToConfirmButton>
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const formatTime = (ms) => {
+  if (!ms) return '0:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const CompletionPopup = ({ completionTime, stats, onClose, onNewGame }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4">
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-2">&#127881;</div>
+          <h2 className="text-2xl font-bold text-green-600">Puzzle Complete!</h2>
+          <p className="text-gray-600 mt-2">Congratulations on solving the puzzle!</p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Your Stats</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">{formatTime(completionTime)}</div>
+              <div className="text-xs text-gray-500">Time</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">{stats.hintsUsed}</div>
+              <div className="text-xs text-gray-500">Hints Used</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">{stats.undosUsed}</div>
+              <div className="text-xs text-gray-500">Undos</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">{stats.mistakesRemoved}</div>
+              <div className="text-xs text-gray-500">Mistakes Removed</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={onNewGame}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          >
+            New Puzzle
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SIZES = [10, 15, 20, 25];
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -132,22 +283,26 @@ const SpeedTestPopup = ({ onClose }) => {
 
 const NonogramGame = () => {
   const [showSpeedTest, setShowSpeedTest] = useState(false);
+  const [showSolutionPopup, setShowSolutionPopup] = useState(false);
 
   const {
     puzzle,
     playerGrid,
     gridSize,
     difficulty,
-    isComplete,
     validationMessage,
     showValidationPopup,
+    showCompletionPopup,
     mistakes,
     history,
+    stats,
+    completionTime,
     newGame,
     undo,
     giveHint,
     validate,
     closeValidationPopup,
+    closeCompletionPopup,
     showMistakes,
     removeMistakes,
     clearMistakes,
@@ -211,7 +366,7 @@ const NonogramGame = () => {
               Validate
             </button>
             <button
-              onClick={showSolution}
+              onClick={() => setShowSolutionPopup(true)}
               className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
             >
               Show Solution
@@ -243,12 +398,6 @@ const NonogramGame = () => {
             </select>
           </div>
 
-          {isComplete && (
-            <div className="mb-4 p-4 bg-green-100 border-2 border-green-500 rounded-lg text-center">
-              <p className="text-xl font-bold text-green-800">Congratulations! Puzzle Complete!</p>
-            </div>
-          )}
-
           {/* Mistake highlighting controls */}
           {mistakes.length > 0 && (
             <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-center justify-center gap-4">
@@ -271,6 +420,30 @@ const NonogramGame = () => {
           {/* Speed Test Popup */}
           {showSpeedTest && (
             <SpeedTestPopup onClose={() => setShowSpeedTest(false)} />
+          )}
+
+          {/* Show Solution Popup */}
+          {showSolutionPopup && (
+            <ShowSolutionPopup
+              onConfirm={() => {
+                showSolution();
+                setShowSolutionPopup(false);
+              }}
+              onCancel={() => setShowSolutionPopup(false)}
+            />
+          )}
+
+          {/* Completion Popup */}
+          {showCompletionPopup && (
+            <CompletionPopup
+              completionTime={completionTime}
+              stats={stats}
+              onClose={closeCompletionPopup}
+              onNewGame={() => {
+                closeCompletionPopup();
+                newGame();
+              }}
+            />
           )}
 
           {/* Validation Popup Modal */}

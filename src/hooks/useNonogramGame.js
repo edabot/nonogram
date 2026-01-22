@@ -16,10 +16,14 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
   const [dragValue, setDragValue] = useState(null);
   const [history, setHistory] = useState([]);
   const [hintCell, setHintCell] = useState(null); // {row, col} of recently hinted cell
+  const [stats, setStats] = useState({ hintsUsed: 0, undosUsed: 0, mistakesRemoved: 0 });
+  const [startTime, setStartTime] = useState(null);
+  const [completionTime, setCompletionTime] = useState(null);
+  const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const dragGridRef = useRef(null);
   const hintTimeoutRef = useRef(null);
 
-  // Check if puzzle is solved
+  // Check if puzzle is solved (only for regular play, not show solution)
   const checkCompletion = useCallback((grid, currentPuzzle) => {
     if (!currentPuzzle) return;
 
@@ -32,8 +36,12 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
       })
     );
 
-    setIsComplete(allFilledCorrect);
-  }, []);
+    if (allFilledCorrect && !isComplete) {
+      setIsComplete(true);
+      setCompletionTime(Date.now() - startTime);
+      setShowCompletionPopup(true);
+    }
+  }, [isComplete, startTime]);
 
   // Auto-fill X's based on line analysis
   const autoFillComplete = useCallback((grid, currentPuzzle) => {
@@ -82,7 +90,11 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     setHistory([]);
     setValidationMessage(null);
     setShowValidationPopup(false);
+    setShowCompletionPopup(false);
     setMistakes([]);
+    setStats({ hintsUsed: 0, undosUsed: 0, mistakesRemoved: 0 });
+    setStartTime(Date.now());
+    setCompletionTime(null);
   }, [gridSize, difficulty]);
 
   // Undo last action
@@ -92,6 +104,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     const previousGrid = history[history.length - 1];
     setPlayerGrid(previousGrid);
     setHistory(prev => prev.slice(0, -1));
+    setStats(prev => ({ ...prev, undosUsed: prev.undosUsed + 1 }));
     checkCompletion(previousGrid, puzzle);
   }, [history, puzzle, checkCompletion]);
 
@@ -176,6 +189,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
 
     saveToHistory(playerGrid);
     const newGrid = playerGrid.map(r => [...r]);
+    setStats(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
 
     // Try to find a logically deducible cell first
     const logicalHint = getLogicalHint(playerGrid, puzzle.rowClues, puzzle.colClues);
@@ -263,6 +277,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
       newGrid[row][col] = null;
     }
 
+    setStats(prev => ({ ...prev, mistakesRemoved: prev.mistakesRemoved + mistakes.length }));
     setPlayerGrid(newGrid);
     setMistakes([]);
   }, [puzzle, playerGrid, mistakes, saveToHistory]);
@@ -272,7 +287,12 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     setMistakes([]);
   }, []);
 
-  // Show solution (debug)
+  // Close completion popup
+  const closeCompletionPopup = useCallback(() => {
+    setShowCompletionPopup(false);
+  }, []);
+
+  // Show solution (does not trigger completion popup)
   const showSolution = useCallback(() => {
     if (!puzzle) return;
 
@@ -281,6 +301,7 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     );
     setPlayerGrid(solutionGrid);
     setIsComplete(true);
+    // Don't show completion popup when solution is revealed
   }, [puzzle]);
 
   // Handle size change
@@ -321,14 +342,18 @@ export const useNonogramGame = (initialSize = 8, initialDifficulty = 'medium') =
     isComplete,
     validationMessage,
     showValidationPopup,
+    showCompletionPopup,
     mistakes,
     hintCell,
     history,
+    stats,
+    completionTime,
     newGame,
     undo,
     giveHint,
     validate,
     closeValidationPopup,
+    closeCompletionPopup,
     showMistakes,
     removeMistakes,
     clearMistakes,
