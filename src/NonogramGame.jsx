@@ -72,7 +72,7 @@ const ShowSolutionPopup = ({ onConfirm, onCancel }) => {
           <div className="text-4xl mb-2">&#9888;</div>
           <h2 className="text-xl font-bold text-gray-800">Show Solution?</h2>
           <p className="text-gray-600 mt-2">
-            This will reveal the complete solution. Hold the button for 2 seconds to confirm.
+            This will reveal the complete solution.
           </p>
         </div>
         <div className="flex gap-3 justify-center">
@@ -153,6 +153,8 @@ const CompletionPopup = ({ completionTime, stats, onClose, onNewGame }) => {
     </div>
   );
 };
+
+const SHOW_SPEED_TEST = false;
 
 const SIZES = [10, 15, 20, 25];
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -371,12 +373,14 @@ const NonogramGame = () => {
             >
               Show Solution
             </button>
-            <button
-              onClick={() => setShowSpeedTest(true)}
-              className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
-            >
-              Speed Test
-            </button>
+            {SHOW_SPEED_TEST && (
+              <button
+                onClick={() => setShowSpeedTest(true)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
+              >
+                Speed Test
+              </button>
+            )}
             <select
               value={gridSize}
               onChange={(e) => handleSizeChange(Number(e.target.value))}
