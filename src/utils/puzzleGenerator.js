@@ -49,25 +49,30 @@ const hasNoCompleteLines = (rowClues, colClues, size) => {
 const SAT_SOLVER_MAX_SIZE = 10;
 
 // Density settings by difficulty
+// Note: very sparse grids (< 0.4) on large sizes are extremely slow to generate
 const DENSITY_BY_DIFFICULTY = {
   easy: 0.65,
-  medium: 0.50,
-  hard: 0.35,
+  medium: 0.55,
+  hard: 0.45,
 };
 
 // Minimum flow score thresholds by difficulty
 // Higher score = more interesting information flow (solving moves around grid)
+// Relaxed for larger grids since they're naturally more complex
 const MIN_FLOW_SCORE = {
   easy: 0.1,
-  medium: 0.25,
-  hard: 0.35,
+  medium: 0.2,
+  hard: 0.25,
 };
 
 // Generate a random puzzle with unique solution
 export const generatePuzzle = (size, difficulty = 'medium') => {
-  // Try multiple attempts to find a unique puzzle
-  const maxAttempts = 100;
+  // Fewer attempts for large grids to avoid long hangs
+  const maxAttempts = size >= 20 ? 30 : 100;
   const density = DENSITY_BY_DIFFICULTY[difficulty] || 0.5;
+
+  // Skip flow analysis for large hard puzzles (too slow)
+  const skipFlowAnalysis = size >= 20 && difficulty === 'hard';
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const solution = Array(size).fill(null).map(() =>
@@ -105,6 +110,16 @@ export const generatePuzzle = (size, difficulty = 'medium') => {
       : countSolutions(rowClues, colClues, size);
 
     if (solutionCount === 1) {
+      // Skip flow analysis for large hard puzzles (too slow)
+      if (skipFlowAnalysis) {
+        return {
+          solution,
+          rowClues,
+          colClues,
+          size,
+        };
+      }
+
       // Analyze information flow to ensure interesting solve path
       const flowAnalysis = analyzeInformationFlow(rowClues, colClues, size);
       const minScore = MIN_FLOW_SCORE[difficulty] || 0.2;
